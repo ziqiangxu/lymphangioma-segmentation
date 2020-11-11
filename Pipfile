@@ -4,11 +4,15 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+jupyter = "*"
 
 [packages]
 pydicom = "*"
 matplotlib = "*"
 dicom2nifti = "*"
+numpy = "*"
+nibabel = "*"
+jupyter = "*"
 
 [requires]
 python_version = "3.8"
