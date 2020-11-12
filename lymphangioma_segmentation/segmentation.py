@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
 import os
-from image import Pixel
-from public import img_show, draw_curve, save_img
+from .image import Pixel
+from .public import img_show, draw_curve, save_img
 import nibabel as nib
 import math
 
