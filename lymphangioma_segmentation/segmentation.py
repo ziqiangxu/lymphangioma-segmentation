@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import numpy as np
 import os
-from .image import Pixel
-from .public import img_show, draw_curve, save_img
+from lymphangioma_segmentation.image import Pixel
+from lymphangioma_segmentation.public import img_show, draw_curve, save_img
 import nibabel as nib
 import math
 
@@ -187,6 +187,7 @@ def test(seed: Pixel, show_seed=True, preset_ratio=1.8):
     os.makedirs('tmp/', exist_ok=True)
     nii: nib.nifti1.Nifti1Image = nib.load('test.nii.gz')
     img: np.ndarray = nii.get_fdata()
+    # 交换图像数据的存储方向
     img = np.transpose(img, [2, 1, 0])
     print(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
 
@@ -225,7 +226,7 @@ def test(seed: Pixel, show_seed=True, preset_ratio=1.8):
 
     mask_3d = np.transpose(mask_3d, [2, 1, 0])
     # P: pixel value
-    # RI: reference intensity
+    # RI: reference intensity 平均像素强度
     # OT: optimized threshold
     # PR: preset ratio
     # TR: trigger ratio
