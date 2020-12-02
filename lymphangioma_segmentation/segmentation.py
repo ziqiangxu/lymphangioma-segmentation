@@ -2,16 +2,16 @@
 Author: Daryl.Xu
 E-mail: ziqiang_xu@qq.com
 """
-import pydicom
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-import numpy as np
-import os
-from .image import Pixel
-from .public import img_show, draw_curve, save_img
-import nibabel as nib
 import math
+import os
+import time
 
+import matplotlib.pyplot as plt
+import nibabel as nib
+import numpy as np
+
+from lymphangioma_segmentation.image import Pixel
+from lymphangioma_segmentation.public import img_show, draw_curve, save_img, save_nii
 
 # def pixel_like(pixel_value: float, reference_intensity: float, threshold: float):
 #     if pixel_value > reference_intensity or reference_intensity - pixel_value < threshold:
@@ -28,7 +28,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     descent_rate = 0.85
 
     threshold = reference_intensity * descent_rate
-    thresholds = [threshold,]
+    thresholds = [threshold, ]
 
     # 这个循环可以并行操作
     # 计算公式 (area3 - area2) / (area2 - area1) 大于2左右的一个经验值
@@ -103,7 +103,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
                 return optimized_threshold, ratio_
         else:
             ratios.append(0)
-        # 如果面积相等，需要打破这个状态，避免下将停止
+        # 如果面积相等，需要打破这个状态，避免下降停止
 
         area1 = area2
         area2 = area3
@@ -183,10 +183,56 @@ def region_grow_3d(img: np.ndarray, seed: Pixel, threshold: float) -> np.ndarray
     return mask
 
 
-def test(seed: Pixel, show_seed=True, preset_ratio=1.8):
+def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray:
+    """
+    参考文献： https://kns.cnki.net/kcms/detail/detail.aspx?FileName=YXWZ201707002&DbName=CJFQ2017
+    这种方法有严重的性能问题
+    :param img:
+    :param seed:
+    :return:
+    """
+    seeds = seed.get_26_neighborhood_3d(img)
+    # seeds.append(seed)
+
+    def get_seeds_array():
+        seeds_value = []
+        for s in seeds:
+            seeds_value.append(s.get_pixel_3d(img))
+        return np.array(seeds_value)
+
+    seeds_arr = get_seeds_array()
+    seeds_mean = seeds_arr.mean()
+    seeds_std = seeds_arr.std()
+    print(f'seeds_mean: {seeds_mean}, seeds_std: {seeds_std}')
+
+    def compare_pixel(value):
+        if value > seeds_mean:
+            return True
+        # current_mean = (mask * img).mean() / mask.sum() * mask.size
+        # if (seeds_mean - value) < 2 * seeds_std and (current_mean - value) < seeds_std:
+        if (seeds_mean - value) < seeds_std:
+            return True
+        return False
+
+    mask = np.zeros(img.shape, dtype=np.int8)
+    while len(seeds):
+        cursor = seeds.pop()
+        neighborhoods = cursor.get_26_neighborhood_3d(img)
+        print(f'pixels number: {mask.sum()}')
+        for pixel in neighborhoods:
+            flag = pixel.get_pixel_3d(mask)
+            pixel_value = pixel.get_pixel_3d(img)
+            if flag == 0 and compare_pixel(pixel_value):
+                seeds.append(pixel)
+                pixel.mark(mask)
+    return mask
+
+
+def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     os.makedirs('tmp/', exist_ok=True)
     nii: nib.nifti1.Nifti1Image = nib.load('test.nii.gz')
     img: np.ndarray = nii.get_fdata()
+    # 交换图像数据的存储方向
     img = np.transpose(img, [2, 1, 0])
     print(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
 
@@ -225,7 +271,7 @@ def test(seed: Pixel, show_seed=True, preset_ratio=1.8):
 
     mask_3d = np.transpose(mask_3d, [2, 1, 0])
     # P: pixel value
-    # RI: reference intensity
+    # RI: reference intensity 平均像素强度
     # OT: optimized threshold
     # PR: preset ratio
     # TR: trigger ratio
@@ -250,15 +296,35 @@ def test(seed: Pixel, show_seed=True, preset_ratio=1.8):
         plt.show()
 
 
+def test1(seed: Pixel):
+    os.makedirs('tmp/', exist_ok=True)
+    nii: nib.nifti1.Nifti1Image = nib.load('test.nii.gz')
+    img: np.ndarray = nii.get_fdata()
+    # 交换图像数据的存储方向
+    img = np.transpose(img, [2, 1, 0])
+    save_nii(img, 'tmp/test1.nii.gz')
+    print(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
+    start = time.time()
+    mask = region_grow_3d_without_threshold(img, seed)
+    time_cost = time.time() - start
+    print(f'time cost: {time_cost}')
+    save_nii(mask, 'tmp/test1_mask-seed2-without-realtime-threshold.nii.gz')
+
+
+def test():
+    seeds_ = list()
+    seeds_.append(Pixel(220, 350, 11))
+    seeds_.append(Pixel(220, 340, 10))
+    seeds_.append(Pixel(220, 350, 9))
+    seeds_.append(Pixel(220, 350, 8))
+    seeds_.append(Pixel(220, 350, 7))
+    seeds_.append(Pixel(220, 350, 6))
+    for s_ in seeds_:
+        test0(s_, False, 1.1)
+    # test1(seeds_[2])
+    # test1(seeds_[3])
+
+
 if __name__ == '__main__':
     os.system('rm -rf output/*220,3*')
-    seeds = list()
-    seeds.append(Pixel(220, 350, 11))
-    seeds.append(Pixel(220, 340, 10))
-    seeds.append(Pixel(220, 350, 9))
-    seeds.append(Pixel(220, 350, 8))
-    seeds.append(Pixel(220, 350, 7))
-    seeds.append(Pixel(220, 350, 6))
-    for s in seeds:
-        test(s, False, 1.1)
-        # test(s, True)
+    test()

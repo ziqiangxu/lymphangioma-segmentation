@@ -46,7 +46,7 @@ class Pixel:
         height = self.height
 
         shape = img.shape
-        # 不为在边缘第体素获取领域
+        # 不为在边缘的体素获取领域
         if height == 0 or row == 0 or col == 0 or \
                 height == (shape[0] - 1) or \
                 row == (shape[1] - 1) or \
@@ -85,6 +85,10 @@ class Pixel:
     def get_pixel_3d(self, img: np.ndarray):
         assert img.ndim == 3
         return img[self.height, self.row, self.col]
+
+    def get_slice(self, img: np.ndarray):
+        assert img.ndim == 3
+        return img[self.height]
 
     def mark(self, mask: np.ndarray, mark_value: int = 1):
         """
