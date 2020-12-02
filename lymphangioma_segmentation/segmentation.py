@@ -5,6 +5,7 @@ E-mail: ziqiang_xu@qq.com
 import math
 import os
 import time
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import nibabel as nib
@@ -21,7 +22,7 @@ from lymphangioma_segmentation.public import img_show, draw_curve, save_img, sav
 
 
 def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: float,
-                            ratio: float, verbose=False) -> float:
+                            ratio: float, verbose=False) -> Tuple[float, float]:
     if verbose:
         print(f'seed_value: {seed.get_pixel(img)}, max_value: {img.max()}')
 
@@ -68,21 +69,25 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
         x = thresholds[:len(areas)]
         figure, axes = draw_curve(x, areas, x_label='threshold', y_label='area')
         axes.axvline(x=optimized_threshold, linestyle='-', color='red')
-        figure.savefig('tmp/area_threshold_curve.png')
+        if verbose:
+            figure.savefig('tmp/area_threshold_curve.png')
         plt.close(figure)
 
         area_s = np.array(areas[:-1])
         area_g = np.array(areas[1:])
         area_delta = area_g - area_s
         index = np.linspace(1, area_delta.size, num=area_delta.size)
-        draw_curve(index, area_delta, 'tmp/area_delta.png', y_label='area_delta')
+        if verbose:
+            draw_curve(index, area_delta, 'tmp/area_delta.png', y_label='area_delta')
 
         index = [i for i in range(len(ratios))]
-        draw_curve(index, ratios, 'tmp/ratios_curve.png', x_label='iter', y_label='ratios')
-        draw_curve(index[min_iter:], ratios[min_iter:], 'tmp/ratios_curve_min.png', y_label='ratios')
+        if verbose:
+            draw_curve(index, ratios, 'tmp/ratios_curve.png', x_label='iter', y_label='ratios')
+            draw_curve(index[min_iter:], ratios[min_iter:], 'tmp/ratios_curve_min.png', y_label='ratios')
 
         index = [i for i in range(len(thresholds))]
-        draw_curve(index, thresholds, 'tmp/thresholds_curve.png', x_label='iter', y_label='threshold')
+        if verbose:
+            draw_curve(index, thresholds, 'tmp/thresholds_curve.png', x_label='iter', y_label='threshold')
 
     while True:
         # ratio_ = None
@@ -93,7 +98,8 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
                 print(f'ratio: {ratio_: .2f}, threshold: {threshold: .1f}, area3: {area3}, area2: {area2}, area1: {area1}')
             if ratio_ > ratio and iteration > min_iter:
             # if abs(threshold - 1100) < 100:
-                save_img(mask * img, 'tmp/critical_mask.png')
+                if verbose:
+                    save_img(mask * img, 'tmp/critical_mask.png')
                 optimized_index = len(areas) - 2
                 optimized_threshold = thresholds[optimized_index]
                 print(f'The optimized threshold: {optimized_threshold}')
