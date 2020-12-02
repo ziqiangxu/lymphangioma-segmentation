@@ -86,6 +86,10 @@ class Pixel:
         assert img.ndim == 3
         return img[self.height, self.row, self.col]
 
+    def get_slice(self, img: np.ndarray):
+        assert img.ndim == 3
+        return img[self.height]
+
     def mark(self, mask: np.ndarray, mark_value: int = 1):
         """
         会更新mask参数

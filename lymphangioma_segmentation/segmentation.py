@@ -28,7 +28,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     descent_rate = 0.85
 
     threshold = reference_intensity * descent_rate
-    thresholds = [threshold,]
+    thresholds = [threshold, ]
 
     # 这个循环可以并行操作
     # 计算公式 (area3 - area2) / (area2 - area1) 大于2左右的一个经验值
@@ -103,7 +103,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
                 return optimized_threshold, ratio_
         else:
             ratios.append(0)
-        # 如果面积相等，需要打破这个状态，避免下将停止
+        # 如果面积相等，需要打破这个状态，避免下降停止
 
         area1 = area2
         area2 = area3
@@ -319,10 +319,10 @@ def test():
     seeds_.append(Pixel(220, 350, 8))
     seeds_.append(Pixel(220, 350, 7))
     seeds_.append(Pixel(220, 350, 6))
-    # for s_ in seeds_:
-    #     test0(s_, False, 1.1)
+    for s_ in seeds_:
+        test0(s_, False, 1.1)
     # test1(seeds_[2])
-    test1(seeds_[3])
+    # test1(seeds_[3])
 
 
 if __name__ == '__main__':
