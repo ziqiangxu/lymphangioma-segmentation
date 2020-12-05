@@ -23,6 +23,18 @@ from lymphangioma_segmentation.public import img_show, draw_curve, save_img, sav
 
 def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: float,
                             ratio: float, verbose=False) -> Tuple[float, float]:
+    """
+    根据种子点计算获取最优的分割阈值
+    基本思想：
+        根据一定规则使阈值缓慢下降，当下降到边界值的时候，用这一阈值分割出来的区域面积会突然增长（错误地将非ROI区域也纳入了）
+    :param img:
+    :param seed:
+    :param reference_intensity: 根据种子点周围的像素点统计出来的强度值，比直接用种子点强度更稳定
+    :param ratio:
+    :param verbose:
+    :return:
+    """
+    img = img.astype(np.float)
     if verbose:
         print(f'seed_value: {seed.get_pixel(img)}, max_value: {img.max()}')
 
@@ -36,27 +48,34 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     mask = region_grow(img, seed, threshold)
     area1 = mask.sum()
 
-    reference_intensity = (mask * img).sum() / mask.sum()
-    threshold_ = reference_intensity * math.pow(descent_rate, 2)
-    if threshold > threshold_:
-        threshold = threshold_
-    else:
-        print('descent according to the previous threshold')
-        threshold *= descent_rate
+    def threshold_descent(current_threshold, mask_, iter_num):
 
+        # 这种计算方法，求和的时候很容易就溢出了
+        # reference_intensity = (mask * img).sum() / mask.sum()
+        # TODO 直接将mask初始化成np.nan, np.full(img.shape, np.nan, dtype = np.uint8)
+        # TODO 并验证一下速度是不是有提高
+        selected = img * mask
+        selected[selected == 0] = np.nan
+        # TODO 为什么会出现selected全是nan的情况？PATIENT1
+        previous_mean = np.nanmean(selected)
+        threshold_based_previous = previous_mean * math.pow(descent_rate, iter_num)
+        if threshold_based_previous < current_threshold:
+            return threshold_based_previous
+        else:
+            # 有时候根据先前的分割面积计算出来的阈值可能比当前的阈值大，阈值就停止下降了
+            # 这时就切换下降策略，直接根据当前阈值下降
+            print('descent according to the previous threshold')
+            return current_threshold * descent_rate
+
+    threshold = threshold_descent(threshold, mask, 2)
     thresholds.append(threshold)
+
     mask = region_grow(img, seed, thresholds[1])
     area2 = mask.sum()
 
-    reference_intensity = (mask * img).sum() / mask.sum()
-    threshold_ = reference_intensity * math.pow(descent_rate, 3)
-    if threshold > threshold_:
-        threshold = threshold_
-    else:
-        print('descent according to the previous threshold')
-        threshold *= descent_rate
-
+    threshold = threshold_descent(threshold, mask, 3)
     thresholds.append(threshold)
+
     mask = region_grow(img, seed, thresholds[2])
     area3 = mask.sum()
     areas = [area1, area2, area3]
@@ -116,20 +135,12 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
 
         iteration += 1
 
-        # average_intensity = (mask * img).sum() / mask.sum()
-        # threshold_ = average_intensity * math.pow(descent_rate, iteration)
-        # if threshold > threshold_:
-        #     threshold = threshold_
-        # else:
-        #     print('descent according to the previous threshold')
-        #     threshold *= descent_rate
-        threshold *= descent_rate
+        threshold = threshold_descent(threshold, mask, iteration)
+        thresholds.append(threshold)
 
         mask = region_grow(img, seed, threshold)
         area3 = mask.sum()
         areas.append(area3)
-
-        thresholds.append(threshold)
 
         if iteration > 300:
             break
