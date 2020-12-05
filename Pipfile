@@ -6,6 +6,7 @@ verify_ssl = true
 [dev-packages]
 jupyter = "*"
 pyqt5 = "*"
+opencv-python = "==4.1.2.30"
 
 [packages]
 pydicom = "*"
