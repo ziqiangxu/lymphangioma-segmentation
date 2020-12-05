@@ -5,6 +5,7 @@ verify_ssl = true
 
 [dev-packages]
 jupyter = "*"
+pyqt5 = "*"
 
 [packages]
 pydicom = "*"
@@ -14,6 +15,8 @@ numpy = "*"
 nibabel = "*"
 jupyter = "*"
 lymphangioma-segmentation = {editable = true, path = "."}
+pytest = "*"
+pyqt5 = "*"
 
 [requires]
 python_version = "3.8"
