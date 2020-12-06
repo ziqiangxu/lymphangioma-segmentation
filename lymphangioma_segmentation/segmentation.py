@@ -245,6 +245,41 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
     return mask
 
 
+def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray, increase: bool = True)\
+        -> Tuple[Pixel, np.ndarray]:
+    """
+    获取相邻slice的种子点
+    统计当前slice已分割的区域，如果相邻层的相同区域的最大像素值在当前slice已分割区域平均值附近，则将其作为种子点
+    :param seed:
+    :param img:
+    :param mask: roi in current slice
+    :param increase: if True increase the height
+    :return:
+    """
+    assert img.ndim == 3
+    if increase:
+        height = seed.height + 1
+    else:
+        height = seed.height - 1
+    seed_neighbor = Pixel(seed.row, seed.col, height)
+
+    slice_ = seed.get_slice(img)
+    slice_next: np.ndarray = seed_neighbor.get_slice(img)
+
+    roi_region: np.ndarray = mask * slice_
+    roi_region[roi_region == 0] = np.nan
+    mean = np.nanmean(roi_region)
+    std = np.nanmean(roi_region)
+
+    seed_region_next: np.ndarray = slice_next * mask
+    index = seed_region_next.argmax()
+    pos = np.unravel_index(index, seed_region_next.shape)
+    if seed_region_next.item(index) > mean - std:
+        return Pixel(int(pos[0]), int(pos[1]), height), slice_next
+    else:
+        return None, slice_next
+
+
 def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     os.makedirs('tmp/', exist_ok=True)
     nii: nib.nifti1.Nifti1Image = nib.load('test.nii.gz')
