@@ -11,6 +11,7 @@ import matplotlib.patches as patches
 import numpy as np
 import nibabel as nib
 import cv2 as cv
+from lymphangioma_segmentation.image import Pixel
 
 
 # TODO move this to config file
@@ -52,6 +53,23 @@ def draw_mask_contours(img, mask, path, size=(6, 6)):
     axes.add_patch(patch)
     figure.savefig(path)
     return figure, axes
+
+
+def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6)):
+    """
+    :param slice_:
+    :param seed:
+    :param path:
+    :param size:
+    :return:
+    """
+    figure, axes = plt.subplots(figsize=size)
+    axes.imshow(slice_, cmap='gray')
+    rect = plt.Rectangle((seed.col, seed.row), 10, 10)
+    axes.add_patch(rect)
+    plt.show()
+    if path:
+        figure.savefig(path)
 
 
 def save_img(img, path, size=(6, 6)):
