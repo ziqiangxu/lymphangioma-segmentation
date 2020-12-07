@@ -293,6 +293,90 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
         return None, slice_next
 
 
+def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
+                        ) -> Tuple[np.ndarray, float]:
+    display = False
+
+    seed = seed_first
+    slice_ = seed.get_slice(img)
+    seed_region_intensity = seed.get_neighborhood_3d_arr(img, 5).mean()
+
+    optimized_threshold, trigger_ratio = get_optimized_threshold(
+        slice_, seed, seed_region_intensity, 0.5, True)
+    mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
+
+    if display:
+        plt.imshow(mask_res)
+        plt.show()
+
+    mask_3d = np.full(img.shape, np.nan)
+    seed.set_slice(mask_3d, mask_res)
+
+    optimized_thresholds = [optimized_threshold]
+
+    def get_mask_mean_std():
+        mask_3d_tmp = (mask_3d * img).astype(np.float)
+        print(mask_3d_tmp.dtype, img.dtype, mask_3d.dtype)
+        mask_3d_tmp[mask_3d_tmp == 0] = np.nan
+        m, s = np.nanmean(mask_3d_tmp), np.nanstd(mask_3d_tmp)
+        return float(m), float(s)
+
+    while seed.height < img.shape[0]:
+        mean, std = get_mask_mean_std()
+        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std, True)
+        if seed is None:
+            # 停止层间生长
+            break
+
+        seed_region_intensity = seed.get_pixel(slice_next)
+        optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
+                                                                      seed_region_intensity, 0.5, True)
+        upper = mean + 3 * std
+        lower = mean - 3 * std
+        if not lower < optimized_threshold < upper:
+            print(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
+            break
+
+        optimized_thresholds.append(optimized_threshold)
+        mask_res = region_grow(slice_next, seed, optimized_threshold)
+        seed.set_slice(mask_3d, mask_res)
+
+        if display:
+            plt.imshow(mask_res)
+            plt.show()
+
+    seed = seed_first
+    while seed.height > 0:
+        mean, std = get_mask_mean_std()
+        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std, False)
+        if seed is None:
+            # 停止层间生长
+            break
+
+        seed_region_intensity = seed.get_pixel(slice_next)
+        optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
+                                                                      seed_region_intensity, 0.5, True)
+        upper = mean + 3 * std
+        lower = mean - 3 * std
+        if not lower < optimized_threshold < upper:
+            print(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
+            break
+
+        optimized_thresholds.append(optimized_threshold)
+        mask_res = region_grow(slice_next, seed, optimized_threshold)
+        seed.set_slice(mask_3d, mask_res)
+
+        thresholds_arr = np.array(optimized_thresholds)
+        print(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
+        if display:
+            plt.imshow(mask_res)
+            plt.show()
+        mean, std = get_mask_mean_std()
+        mask_3d[np.isnan(mask_3d)] = 0
+        mask_3d = mask_3d.astype(np.uint8)
+        return mask_3d, mean
+
+
 def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     os.makedirs('tmp/', exist_ok=True)
     nii: nib.nifti1.Nifti1Image = nib.load('test.nii.gz')
