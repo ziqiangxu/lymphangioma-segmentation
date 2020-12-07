@@ -10,7 +10,10 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import numpy as np
 import nibabel as nib
-import cv2 as cv
+try:
+    import cv2 as cv
+except ModuleNotFoundError:
+    print('don\'t worry, cv2 is required just in development')
 from lymphangioma_segmentation.image import Pixel
 
 

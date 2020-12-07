@@ -10,9 +10,9 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
-import public
 
 from lymphangioma_segmentation.image import Pixel
+from lymphangioma_segmentation import public
 from lymphangioma_segmentation.public import img_show, draw_curve, save_img, save_nii
 
 # def pixel_like(pixel_value: float, reference_intensity: float, threshold: float):
@@ -302,7 +302,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
     seed_region_intensity = seed.get_neighborhood_3d_arr(img, 5).mean()
 
     optimized_threshold, trigger_ratio = get_optimized_threshold(
-        slice_, seed, seed_region_intensity, 0.5, True)
+        slice_, seed, seed_region_intensity, 0.5, False)
     mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
     if display:
@@ -330,7 +330,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
 
         seed_region_intensity = seed.get_pixel(slice_next)
         optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                                      seed_region_intensity, 0.5, True)
+                                                                      seed_region_intensity, 0.5, False)
         upper = mean + 3 * std
         lower = mean - 3 * std
         if not lower < optimized_threshold < upper:
@@ -355,7 +355,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
 
         seed_region_intensity = seed.get_pixel(slice_next)
         optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                                      seed_region_intensity, 0.5, True)
+                                                                      seed_region_intensity, 0.5, False)
         upper = mean + 3 * std
         lower = mean - 3 * std
         if not lower < optimized_threshold < upper:
