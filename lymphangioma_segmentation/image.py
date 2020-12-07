@@ -112,9 +112,13 @@ class Pixel:
         assert img.ndim == 3
         return img[self.height, self.row, self.col]
 
-    def get_slice(self, img: np.ndarray):
+    def get_slice(self, img: np.ndarray) -> np.ndarray:
         assert img.ndim == 3
         return img[self.height]
+
+    def set_slice(self, img: np.ndarray, slice_: np.ndarray):
+        assert img.ndim == 3
+        img[self.height] = slice_
 
     def mark(self, mask: np.ndarray, mark_value: int = 1):
         """
