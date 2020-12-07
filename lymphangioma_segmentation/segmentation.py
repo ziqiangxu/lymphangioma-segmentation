@@ -247,8 +247,8 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
 
 
 def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
-                               mean: float, std: float, increase: bool = True)\
-        -> Tuple[Pixel, np.ndarray]:
+                               mean: float, std: float, increase: bool = True
+                               ) -> Tuple[Pixel, np.ndarray]:
     """
     获取相邻slice的种子点
     统计当前slice已分割的区域，如果相邻层的相同区域的最大像素值在当前slice已分割区域平均值附近，则将其作为种子点
@@ -277,8 +277,8 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
 
     seed_region_next: np.ndarray = slice_next * mask
     # TODO 这个地方有问题，可能找到ROI之外
-    upper = mean + std
-    lower = mean - std
+    upper = mean + 2*std
+    lower = mean - 2*std
 
     seed_region_next[seed_region_next < lower] = 0
     seed_region_next[seed_region_next > upper] = 0
@@ -288,7 +288,6 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     seed_next = Pixel(int(pos[0]), int(pos[1]), height)
     if lower < seed_region_next.item(index) < upper:
         print(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
-        public.show_seed(slice_next, seed_next)
         return seed_next, slice_next
     else:
         return None, slice_next
