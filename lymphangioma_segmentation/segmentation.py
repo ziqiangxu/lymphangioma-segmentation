@@ -10,6 +10,7 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
+import public
 
 from lymphangioma_segmentation.image import Pixel
 from lymphangioma_segmentation.public import img_show, draw_curve, save_img, save_nii
@@ -82,7 +83,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
 
     ratios = []
     iteration = 3
-    min_iter = 4
+    min_iter = 3
 
     def draw_log_pic():
         x = thresholds[:len(areas)]
@@ -245,7 +246,8 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
     return mask
 
 
-def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray, increase: bool = True)\
+def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
+                               mean: float, std: float, increase: bool = True)\
         -> Tuple[Pixel, np.ndarray]:
     """
     获取相邻slice的种子点
@@ -253,6 +255,8 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray, i
     :param seed:
     :param img:
     :param mask: roi in current slice
+    :param mean:
+    :param std:
     :param increase: if True increase the height
     :return:
     """
@@ -263,19 +267,29 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray, i
         height = seed.height - 1
     seed_neighbor = Pixel(seed.row, seed.col, height)
 
-    slice_ = seed.get_slice(img)
+    # slice_ = seed.get_slice(img)
     slice_next: np.ndarray = seed_neighbor.get_slice(img)
-
-    roi_region: np.ndarray = mask * slice_
-    roi_region[roi_region == 0] = np.nan
-    mean = np.nanmean(roi_region)
-    std = np.nanmean(roi_region)
+    #
+    # roi_region: np.ndarray = mask * slice_.astype(np.float)
+    # roi_region[roi_region == 0] = np.nan
+    # mean = np.nanmean(roi_region)
+    # std = np.nanmean(roi_region)
 
     seed_region_next: np.ndarray = slice_next * mask
+    # TODO 这个地方有问题，可能找到ROI之外
+    upper = mean + std
+    lower = mean - std
+
+    seed_region_next[seed_region_next < lower] = 0
+    seed_region_next[seed_region_next > upper] = 0
+
     index = seed_region_next.argmax()
     pos = np.unravel_index(index, seed_region_next.shape)
-    if seed_region_next.item(index) > mean - std:
-        return Pixel(int(pos[0]), int(pos[1]), height), slice_next
+    seed_next = Pixel(int(pos[0]), int(pos[1]), height)
+    if lower < seed_region_next.item(index) < upper:
+        print(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
+        public.show_seed(slice_next, seed_next)
+        return seed_next, slice_next
     else:
         return None, slice_next
 
