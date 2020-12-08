@@ -31,7 +31,7 @@ def img_show(img, size=(6, 6), output='tmp/tmp.png'):
     return figure, axes
 
 
-def draw_mask_contours(img, mask, path, size=(6, 6)):
+def draw_mask_contours(img, mask, path, size=(6, 6), title: str = ""):
     """
     https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_contours/py_contours_begin/py_contours_begin.html#what-are-contours
     此链接的文档有问题啊(findContours只返回结果是两个元素的元祖)
@@ -40,11 +40,13 @@ def draw_mask_contours(img, mask, path, size=(6, 6)):
     :param mask:
     :param path:
     :param size:
+    :param title:
     :return:
     """
     figure: Figure
     axis: Axes
     figure, axis = plt.subplots(figsize=size)
+    axis.set_title(title)
     axis.imshow(img, cmap='gray')
 
     contours, hierarchy = cv.findContours(mask.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
