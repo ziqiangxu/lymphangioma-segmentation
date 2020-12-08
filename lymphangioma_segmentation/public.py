@@ -6,6 +6,7 @@ import os
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 from matplotlib.path import Path
 import matplotlib.patches as patches
 import numpy as np
@@ -22,6 +23,8 @@ LOG_PATH = '/home/daryl/git/lymphangioma-segmentation/lymphangioma_segmentation/
 
 
 def img_show(img, size=(6, 6), output='tmp/tmp.png'):
+    figure: Figure
+    axes: Axes
     figure, axes = plt.subplots(figsize=size)
     axes.imshow(img, cmap='gray')
     figure.savefig(output)
@@ -39,8 +42,10 @@ def draw_mask_contours(img, mask, path, size=(6, 6)):
     :param size:
     :return:
     """
-    figure, axes = plt.subplots(figsize=size)
-    axes.imshow(img, cmap='gray')
+    figure: Figure
+    axis: Axes
+    figure, axis = plt.subplots(figsize=size)
+    axis.imshow(img, cmap='gray')
 
     contours, hierarchy = cv.findContours(mask.astype(np.uint8), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
@@ -53,9 +58,9 @@ def draw_mask_contours(img, mask, path, size=(6, 6)):
 
     contours_path = Path(contours1, codes)
     patch = patches.PathPatch(contours_path, color='red', lw=2, fill=False)
-    axes.add_patch(patch)
+    axis.add_patch(patch)
     figure.savefig(path)
-    return figure, axes
+    return figure, axis
 
 
 def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6)):
@@ -66,6 +71,8 @@ def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6)):
     :param size:
     :return:
     """
+    figure: Figure
+    axes: Axes
     figure, axes = plt.subplots(figsize=size)
     axes.imshow(slice_, cmap='gray')
     rect = plt.Rectangle((seed.col, seed.row), 10, 10)
@@ -76,6 +83,8 @@ def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6)):
 
 
 def save_img(img, path, size=(6, 6)):
+    figure: Figure
+    axes: Axes
     figure, axes = plt.subplots(figsize=size)
     axes.imshow(img, cmap='gray')
     figure.savefig(path)
@@ -83,6 +92,8 @@ def save_img(img, path, size=(6, 6)):
 
 
 def draw_curve(x_data, y_data, output=None, size=(6, 6), x_label='', y_label=''):
+    figure: Figure
+    axes: Axes
     figure, axes = plt.subplots(figsize=size)
     axes.plot(x_data, y_data)
     axes.set_xlabel(x_label)
