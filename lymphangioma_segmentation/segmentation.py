@@ -14,6 +14,10 @@ import numpy as np
 from lymphangioma_segmentation.image import Pixel
 from lymphangioma_segmentation import public
 from lymphangioma_segmentation.public import img_show, draw_curve, save_img, save_nii
+from lymphangioma_segmentation.log import get_logger
+
+
+logger = get_logger(__name__)
 
 # def pixel_like(pixel_value: float, reference_intensity: float, threshold: float):
 #     if pixel_value > reference_intensity or reference_intensity - pixel_value < threshold:
@@ -65,7 +69,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
         else:
             # 有时候根据先前的分割面积计算出来的阈值可能比当前的阈值大，阈值就停止下降了
             # 这时就切换下降策略，直接根据当前阈值下降
-            print('descent according to the previous threshold')
+            logger.debug('descent according to the previous threshold')
             return current_threshold * descent_rate
 
     threshold = threshold_descent(threshold, mask, 2)
@@ -122,7 +126,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
                     save_img(mask * img, 'tmp/critical_mask.png')
                 optimized_index = len(areas) - 2
                 optimized_threshold = thresholds[optimized_index]
-                print(f'The optimized threshold: {optimized_threshold}')
+                logger.info(f'The optimized threshold: {optimized_threshold}')
                 # show the optimized segmentation
                 #             img_show(mask)
                 draw_log_pic()
