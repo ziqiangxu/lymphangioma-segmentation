@@ -317,7 +317,6 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
 
     def get_mask_mean_std():
         mask_3d_tmp = (mask_3d * img).astype(np.float)
-        logger.debug(mask_3d_tmp.dtype, img.dtype, mask_3d.dtype)
         mask_3d_tmp[mask_3d_tmp == 0] = np.nan
         m, s = np.nanmean(mask_3d_tmp), np.nanstd(mask_3d_tmp)
         return float(m), float(s)
@@ -368,14 +367,14 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
         seed.set_slice(mask_3d, mask_res)
 
         thresholds_arr = np.array(optimized_thresholds)
-        print(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
+        logger.debug(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
         if display:
             plt.imshow(mask_res)
             plt.show()
-        mean, std = get_mask_mean_std()
-        mask_3d[np.isnan(mask_3d)] = 0
-        mask_3d = mask_3d.astype(np.uint8)
-        return mask_3d, mean, std
+    mean, std = get_mask_mean_std()
+    mask_3d[np.isnan(mask_3d)] = 0
+    mask_3d = mask_3d.astype(np.uint8)
+    return mask_3d, mean, std
 
 
 def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
