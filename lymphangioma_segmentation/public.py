@@ -3,6 +3,7 @@ Author: Daryl.Xu
 E-mail: ziqiang_xu@qq.com
 """
 import os
+from typing import List
 
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
@@ -118,3 +119,20 @@ def get_log_path(relative_path: str, create_dir=False):
     if create_dir:
         os.makedirs(absolute_path, exist_ok=True)
     return absolute_path
+
+
+def load_volume_from_jpg(files: List[str]) -> np.ndarray:
+    """
+    Load volume from jpg
+    :param files:
+    :return:
+    """
+    volume = []
+    for file in files:
+        img = cv.imread(file, cv.IMREAD_GRAYSCALE)
+        volume.append(img)
+        plt.imshow(img, cmap='gray')
+        plt.show()
+    volume = np.stack(volume)
+    volume = volume / volume.max() * 1024
+    return volume
