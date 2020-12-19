@@ -34,7 +34,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     """
     img = img.astype(np.float)
     if verbose:
-        print(f'seed_value: {seed.get_pixel(img)}, max_value: {img.max()}')
+        logger.debug(f'seed_value: {seed.get_pixel(img)}, max_value: {img.max()}')
 
     descent_rate = 0.85
 
@@ -112,7 +112,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
             ratio_ = (area3 - area2) / (area2 - area1)
             ratios.append(ratio_)
             if verbose:
-                print(
+                logger.debug(
                     f'ratio: {ratio_: .2f}, threshold: {threshold: .1f}, area3: {area3}, area2: {area2}, area1: {area1}')
             if ratio_ > ratio and iteration > min_iter:
                 # if abs(threshold - 1100) < 100:
@@ -156,7 +156,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
 
 #     if mask.sum() > area_limit:
 #         break
-#     print(f'threshold: {threshold}, area: {mask.sum()}')
+#     logger.debug(f'threshold: {threshold}, area: {mask.sum()}')
 
 
 def region_grow(img: np.ndarray, seed: Pixel, threshold: float) -> np.ndarray:
@@ -222,7 +222,7 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
     seeds_arr = get_seeds_array()
     seeds_mean = seeds_arr.mean()
     seeds_std = seeds_arr.std()
-    print(f'seeds_mean: {seeds_mean}, seeds_std: {seeds_std}')
+    logger.debug(f'seeds_mean: {seeds_mean}, seeds_std: {seeds_std}')
 
     def compare_pixel(value):
         if value > seeds_mean:
@@ -237,7 +237,7 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
     while len(seeds):
         cursor = seeds.pop()
         neighborhoods = cursor.get_26_neighborhood_3d(img)
-        print(f'pixels number: {mask.sum()}')
+        logger.debug(f'pixels number: {mask.sum()}')
         for pixel in neighborhoods:
             flag = pixel.get_pixel_3d(mask)
             pixel_value = pixel.get_pixel_3d(img)
@@ -288,7 +288,7 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     pos = np.unravel_index(index, seed_region_next.shape)
     seed_next = Pixel(int(pos[0]), int(pos[1]), height)
     if lower < seed_region_next.item(index) < upper:
-        print(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
+        logger.debug(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
         return seed_next, slice_next
     else:
         return None, slice_next
@@ -296,6 +296,11 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
 
 def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
                         ) -> Tuple[np.ndarray, float, float]:
+    """
+    :param seed_first:
+    :param img:
+    :return: mask, mean, std
+    """
     display = False
 
     seed = seed_first
@@ -317,12 +322,13 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
 
     def get_mask_mean_std():
         mask_3d_tmp = (mask_3d * img).astype(np.float)
-        logger.debug(mask_3d_tmp.dtype, img.dtype, mask_3d.dtype)
+        # logger.debug(f'{mask_3d_tmp.dtype}, {img.dtype}, {mask_3d.dtype}')
         mask_3d_tmp[mask_3d_tmp == 0] = np.nan
         m, s = np.nanmean(mask_3d_tmp), np.nanstd(mask_3d_tmp)
         return float(m), float(s)
 
-    while seed.height < img.shape[0]:
+    max_index = img.shape[0] - 1
+    while seed.height < max_index:
         mean, std = get_mask_mean_std()
         seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std, True)
         if seed is None:
@@ -360,7 +366,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
         upper = mean + 3 * std
         lower = mean - 3 * std
         if not lower < optimized_threshold < upper:
-            print(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
+            logger.debug(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
             break
 
         optimized_thresholds.append(optimized_threshold)
@@ -368,7 +374,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
         seed.set_slice(mask_3d, mask_res)
 
         thresholds_arr = np.array(optimized_thresholds)
-        print(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
+        logger.debug(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
         if display:
             plt.imshow(mask_res)
             plt.show()
@@ -384,7 +390,7 @@ def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     img: np.ndarray = nii.get_fdata()
     # 交换图像数据的存储方向
     img = np.transpose(img, [2, 1, 0])
-    print(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
+    logger.debug(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
 
     slice_: np.ndarray = img[seed.height]
 
@@ -392,7 +398,7 @@ def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     selected_area = slice_[seed.row - 5:seed.row + 5, seed.col - 5:seed.col + 5]
     # 对矩阵进行修改要非常谨慎
     slice_copy[seed.row - 5:seed.row + 5, seed.col - 5:seed.col + 5] = 0
-    # print('selected area: ', selected_area)
+    # logger.debug('selected area: ', selected_area)
     img_show(slice_copy)
 
     figure_seed_region, axis_seed_region = img_show(slice_)
@@ -404,11 +410,11 @@ def test0(seed: Pixel, show_seed=True, preset_ratio=1.8):
     figure_seed_region.savefig('tmp/seed_region.png')
 
     reference_intensity = selected_area.sum() / selected_area.size
-    print(f'reference intensity: {reference_intensity}, sum: {selected_area.sum()}, num: {selected_area.size}')
+    logger.debug(f'reference intensity: {reference_intensity}, sum: {selected_area.sum()}, num: {selected_area.size}')
     optimized_threshold, trigger_ratio = get_optimized_threshold(slice_, seed, reference_intensity, ratio=preset_ratio,
                                                                  verbose=False)
 
-    print(f'threshold: {optimized_threshold: .1f}, target: 1200, deviation: {optimized_threshold - 1200}')
+    logger.debug(f'threshold: {optimized_threshold: .1f}, target: 1200, deviation: {optimized_threshold - 1200}')
     # TODO remove the return
     # return
 
@@ -453,12 +459,11 @@ def test1(seed: Pixel):
     # 交换图像数据的存储方向
     img = np.transpose(img, [2, 1, 0])
     save_nii(img, 'tmp/test1.nii.gz')
-    print(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
+    logger.debug(f'shape of the NIfTI image: {img.shape}, seed: {seed}')
     start = time.time()
     mask = region_grow_3d_without_threshold(img, seed)
     time_cost = time.time() - start
-    print(f'time cost: {time_cost}')
-    save_nii(mask, 'tmp/test1_mask-seed2-without-realtime-threshold.nii.gz')
+    logger.debug    save_nii(mask, 'tmp/test1_mask-seed2-without-realtime-threshold.nii.gz')
 
 
 def test():
