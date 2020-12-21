@@ -30,13 +30,13 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     :param reference_intensity: 根据种子点周围的像素点统计出来的强度值，比直接用种子点强度更稳定
     :param ratio:
     :param verbose:
-    :return:
+    :return: threshold,
     """
     img = img.astype(np.float)
     if verbose:
         logger.debug(f'seed_value: {seed.get_pixel(img)}, max_value: {img.max()}')
 
-    descent_rate = 0.85
+    descent_rate = 0.95
 
     threshold = reference_intensity * descent_rate
     thresholds = [threshold, ]
@@ -294,11 +294,12 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
         return None, slice_next
 
 
-def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
+def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
                         ) -> Tuple[np.ndarray, float, float]:
     """
     :param seed_first:
     :param img:
+    :param ratio:
     :return: mask, mean, std
     """
     display = False
@@ -308,7 +309,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray
     seed_region_intensity = seed.get_neighborhood_3d_arr(img, 5).mean()
 
     optimized_threshold, trigger_ratio = get_optimized_threshold(
-        slice_, seed, seed_region_intensity, 0.5, False)
+        slice_, seed, seed_region_intensity, ratio, False)
     mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
     if display:
