@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: float,
-                            ratio: float, verbose=False) -> Tuple[float, float]:
+                            ratio: float, verbose=False, min_iter: int = 3) -> Tuple[float, float]:
     """
     根据种子点计算获取最优的分割阈值
     基本思想：
@@ -30,7 +30,8 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     :param reference_intensity: 根据种子点周围的像素点统计出来的强度值，比直接用种子点强度更稳定
     :param ratio:
     :param verbose:
-    :return: threshold,
+    :param min_iter:
+    :return: threshold, ratio_
     """
     img = img.astype(np.float)
     if verbose:
@@ -47,6 +48,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     area1 = mask.sum()
 
     def threshold_descent(current_threshold, mask_, iter_num):
+        return current_threshold * descent_rate
 
         # 这种计算方法，求和的时候很容易就溢出了
         # reference_intensity = (mask * img).sum() / mask.sum()
@@ -80,7 +82,6 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
 
     ratios = []
     iteration = 3
-    min_iter = 3
 
     def draw_log_pic():
         x = thresholds[:len(areas)]
@@ -141,7 +142,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
         area3 = mask.sum()
         areas.append(area3)
 
-        if iteration > 300:
+        if iteration > 50:
             break
 
     ratios_valid = ratios[min_iter:]
@@ -149,8 +150,12 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     index = ratios_valid.index(ratio_)
     optimized_threshold = thresholds[min_iter + index - 1]
     draw_log_pic()
-    plt.plot(ratios)
-    plt.show()
+    if verbose:
+        # 遇到内层 中层 外层三层强度值差别很大,
+        # 如内层在100附近,中层10附近,外层在100附近.
+        # 从内层生长到0附近可能需要下降多次才能发生泄漏
+        plt.plot(ratios)
+        plt.show()
     return optimized_threshold, ratio_
 
 
