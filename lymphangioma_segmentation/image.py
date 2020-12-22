@@ -84,21 +84,21 @@ class Pixel:
     def get_neighborhood_3d_arr(self, img: np.ndarray, half_width: int = 3,
                                 half_height: int = 1) -> np.ndarray:
         def valid_index(test_value, upper):
-            assert 0 <= test_value < upper
+            assert 0 <= test_value <= upper
 
         shape = img.shape
         height1 = self.height - half_height
-        height2 = self.height + half_height
+        height2 = self.height + half_height + 1
         valid_index(height1, shape[0])
         valid_index(height2, shape[0])
 
         row1 = self.row - half_width
-        row2 = self.row + half_width
+        row2 = self.row + half_width + 1
         valid_index(row1, shape[1])
         valid_index(row2, shape[1])
 
         column1 = self.col - half_width
-        column2 = self.col + half_width
+        column2 = self.col + half_width + 1
         valid_index(column1, shape[2])
         valid_index(column2, shape[2])
         arr: np.ndarray = img[height1:height2, row1:row2, column1:column2]
