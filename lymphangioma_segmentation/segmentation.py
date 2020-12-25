@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 
 def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: float,
-                            ratio: float, verbose=False, min_iter: int = 3) -> Tuple[float, float]:
+                            ratio: float = 3, verbose=False, min_iter: int = 3) -> Tuple[float, float]:
     """
     根据种子点计算获取最优的分割阈值
     基本思想：
@@ -282,7 +282,8 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     # std = np.nanmean(roi_region)
 
     seed_region_next: np.ndarray = slice_next * mask
-    # TODO 这个地方有问题，可能找到ROI之外
+
+    # TODO 这个地方有问题，可能找到ROI之外. 特别是在上一层分割不太准确的时候, 所以需要着重提高区域生长的精度
     upper = mean + 2 * std
     lower = mean - 2 * std
 
@@ -292,6 +293,9 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     index = seed_region_next.argmax()
     pos = np.unravel_index(index, seed_region_next.shape)
     seed_next = Pixel(int(pos[0]), int(pos[1]), height)
+
+    public.show_seed(slice_next, seed_next, 'tmp/.png')
+
     if lower < seed_region_next.item(index) < upper:
         logger.debug(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
         return seed_next, slice_next
@@ -307,19 +311,19 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
     :param ratio:
     :return: mask, mean, std
     """
+    # display = True
     display = False
 
     seed = seed_first
     slice_ = seed.get_slice(img)
-    seed_region_intensity = seed.get_neighborhood_3d_arr(img, 5).mean()
+    seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
 
     optimized_threshold, trigger_ratio = get_optimized_threshold(
         slice_, seed, seed_region_intensity, ratio, False)
     mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
     if display:
-        plt.imshow(mask_res)
-        plt.show()
+        public.draw_mask_contours(slice_, mask_res, 'tmp/.png')
 
     mask_3d = np.full(img.shape, np.nan)
     seed.set_slice(mask_3d, mask_res)
@@ -341,22 +345,22 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
             # 停止层间生长
             break
 
-        seed_region_intensity = seed.get_pixel(slice_next)
+        seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
         optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                         seed_region_intensity, 0.5, False)
-        upper = mean + 3 * std
-        lower = mean - 3 * std
-        if not lower < optimized_threshold < upper:
-            logger.debug(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
-            break
+                                                         seed_region_intensity)
+        # 对于A100 B10 C100 类型, 阈值可能会非常接近10
+        # upper = mean + 3 * std
+        # lower = mean - 3 * std
+        # if not lower < optimized_threshold < upper:
+        #     logger.debug(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
+        #     break
 
         optimized_thresholds.append(optimized_threshold)
         mask_res = region_grow(slice_next, seed, optimized_threshold)
         seed.set_slice(mask_3d, mask_res)
 
         if display:
-            plt.imshow(mask_res)
-            plt.show()
+            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png')
 
     seed = seed_first
     while seed.height > 0:
@@ -366,14 +370,15 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
             # 停止层间生长
             break
 
-        seed_region_intensity = seed.get_pixel(slice_next)
+        seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
         optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                         seed_region_intensity, 0.5, False)
-        upper = mean + 3 * std
-        lower = mean - 3 * std
-        if not lower < optimized_threshold < upper:
-            logger.debug(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
-            break
+                                                         seed_region_intensity)
+
+        # upper = mean + 3 * std
+        # lower = mean - 3 * std
+        # if not lower < optimized_threshold < upper:
+        #     logger.debug(f'range: ({lower}, {upper}), threshold: {optimized_threshold}')
+        #     break
 
         optimized_thresholds.append(optimized_threshold)
         mask_res = region_grow(slice_next, seed, optimized_threshold)
@@ -382,8 +387,10 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
         thresholds_arr = np.array(optimized_thresholds)
         logger.debug(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
         if display:
-            plt.imshow(mask_res)
-            plt.show()
+            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png')
+
+    if display:
+        plt.show()
     mean, std = get_mask_mean_std()
     mask_3d[np.isnan(mask_3d)] = 0
     mask_3d = mask_3d.astype(np.uint8)
