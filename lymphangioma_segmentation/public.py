@@ -66,18 +66,20 @@ def draw_mask_contours(img, mask, path, size=(6, 6), title: str = ""):
     return figure, axis
 
 
-def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6)):
+def show_seed(slice_: np.ndarray, seed: Pixel, path: str = None, size=(6, 6), title=''):
     """
     :param slice_:
     :param seed:
     :param path:
     :param size:
+    :param title:
     :return:
     """
     figure: Figure
     axes: Axes
     figure, axes = plt.subplots(figsize=size)
     axes.imshow(slice_, cmap='gray')
+    axes.set_title(title)
     rect = plt.Rectangle((seed.col, seed.row), 10, 10)
     axes.add_patch(rect)
     plt.show()

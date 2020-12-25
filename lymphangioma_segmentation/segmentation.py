@@ -84,6 +84,7 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
     iteration = 3
 
     def draw_log_pic():
+        # threshold curve
         x = thresholds[:len(areas)]
         figure, axes = draw_curve(x, areas, x_label='threshold', y_label='area')
         axes.axvline(x=optimized_threshold, linestyle='-', color='red')
@@ -91,21 +92,34 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
             figure.savefig('tmp/area_threshold_curve.png')
         plt.close(figure)
 
+        x = thresholds[:len(areas) - 1]
+        figure, axes = draw_curve(x, areas[:-1], x_label='threshold', y_label='area')
+        axes.axvline(x=optimized_threshold, linestyle='-', color='red')
+        if verbose:
+            figure.savefig('tmp/area_threshold_curve_.png')
+        plt.close(figure)
+
+        # area delta
         area_s = np.array(areas[:-1])
         area_g = np.array(areas[1:])
         area_delta = area_g - area_s
         index = np.linspace(1, area_delta.size, num=area_delta.size)
         if verbose:
             draw_curve(index, area_delta, 'tmp/area_delta.png', y_label='area_delta')
+            draw_curve(index[:-1], area_delta[:-1], 'tmp/area_delta_.png',
+                       y_label='area_delta')
 
         index = [i for i in range(len(ratios))]
         if verbose:
             draw_curve(index, ratios, 'tmp/ratios_curve.png', x_label='iter', y_label='ratios')
+            draw_curve(index[:-1], ratios[:-1], 'tmp/ratios_curve_.png', x_label='iter', y_label='ratios')
             draw_curve(index[min_iter:], ratios[min_iter:], 'tmp/ratios_curve_min.png', y_label='ratios')
+            draw_curve(index[min_iter:-1], ratios[min_iter:-1], 'tmp/ratios_curve_min_.png', y_label='ratios')
 
         index = [i for i in range(len(thresholds))]
         if verbose:
             draw_curve(index, thresholds, 'tmp/thresholds_curve.png', x_label='iter', y_label='threshold')
+            draw_curve(index[:-1], thresholds[:-1], 'tmp/thresholds_curve_.png', x_label='iter', y_label='threshold')
 
     while True:
         # ratio_ = None
@@ -253,7 +267,8 @@ def region_grow_3d_without_threshold(img: np.ndarray, seed: Pixel) -> np.ndarray
 
 
 def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
-                               mean: float, std: float, increase: bool = True
+                               mean: float, std: float, increase: bool = True,
+                               show_seed: bool = False
                                ) -> Tuple[Pixel, np.ndarray]:
     """
     获取相邻slice的种子点
@@ -264,6 +279,7 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     :param mean:
     :param std:
     :param increase: if True increase the height
+    :param show_seed:
     :return:
     """
     assert img.ndim == 3
@@ -294,7 +310,8 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     pos = np.unravel_index(index, seed_region_next.shape)
     seed_next = Pixel(int(pos[0]), int(pos[1]), height)
 
-    public.show_seed(slice_next, seed_next, 'tmp/.png')
+    if show_seed:
+        public.show_seed(slice_next, seed_next, 'tmp/.png', title=f's:{seed_next}')
 
     if lower < seed_region_next.item(index) < upper:
         logger.debug(f'seed got: {seed_next}, value of seed: {seed_region_next.item(index)}')
@@ -303,27 +320,27 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
         return None, slice_next
 
 
-def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
+def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5,
+                        verbose: bool = False, min_iter: int = 3
                         ) -> Tuple[np.ndarray, float, float]:
     """
     :param seed_first:
     :param img:
     :param ratio:
+    :param verbose:
+    :param min_iter:
     :return: mask, mean, std
     """
-    # display = True
-    display = False
-
     seed = seed_first
     slice_ = seed.get_slice(img)
     seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
 
     optimized_threshold, trigger_ratio = get_optimized_threshold(
-        slice_, seed, seed_region_intensity, ratio, False)
+        slice_, seed, seed_region_intensity, ratio, verbose, min_iter)
     mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
-    if display:
-        public.draw_mask_contours(slice_, mask_res, 'tmp/.png')
+    if verbose:
+        public.draw_mask_contours(slice_, mask_res, 'tmp/.png', title=f's: {seed}')
 
     mask_3d = np.full(img.shape, np.nan)
     seed.set_slice(mask_3d, mask_res)
@@ -340,14 +357,16 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
     max_index = img.shape[0] - 1
     while seed.height < max_index:
         mean, std = get_mask_mean_std()
-        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std, True)
+        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std,
+                                                      increase=True, show_seed=verbose)
         if seed is None:
             # 停止层间生长
             break
 
         seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
         optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                         seed_region_intensity)
+                                                         seed_region_intensity, ratio, verbose,
+                                                         min_iter)
         # 对于A100 B10 C100 类型, 阈值可能会非常接近10
         # upper = mean + 3 * std
         # lower = mean - 3 * std
@@ -359,20 +378,21 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
         mask_res = region_grow(slice_next, seed, optimized_threshold)
         seed.set_slice(mask_3d, mask_res)
 
-        if display:
-            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png')
+        if verbose:
+            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png', title=f's: {seed}')
 
     seed = seed_first
     while seed.height > 0:
         mean, std = get_mask_mean_std()
-        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std, False)
+        seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std,
+                                                      increase=False, show_seed=verbose)
         if seed is None:
             # 停止层间生长
             break
 
         seed_region_intensity = seed.get_neighborhood_3d_arr(img, half_width=5, half_height=0).mean()
-        optimized_threshold, _ = get_optimized_threshold(slice_next, seed,
-                                                         seed_region_intensity)
+        optimized_threshold, _ = get_optimized_threshold(slice_next, seed, seed_region_intensity,
+                                                         ratio, verbose, min_iter)
 
         # upper = mean + 3 * std
         # lower = mean - 3 * std
@@ -386,10 +406,10 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5
 
         thresholds_arr = np.array(optimized_thresholds)
         logger.debug(f'mean of threshold: {thresholds_arr.mean()}, {thresholds_arr}')
-        if display:
-            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png')
+        if verbose:
+            public.draw_mask_contours(slice_next, mask_res, 'tmp/.png', title=f's: {seed}')
 
-    if display:
+    if verbose:
         plt.show()
     mean, std = get_mask_mean_std()
     mask_3d[np.isnan(mask_3d)] = 0
