@@ -17,6 +17,7 @@ nibabel = "*"
 jupyter = "*"
 lymphangioma-segmentation = {editable = true, path = "."}
 pytest = "*"
+deprecated = "*"
 
 [requires]
 python_version = "3.8"
