@@ -300,7 +300,7 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     # 缩小mask的区域
     mask_ = mask.astype(np.float)
     mask_[slice_ < mean] = 0
-    # 如果当前层的mask已经非常小了, 则停止生长,防止下一层生长到全图
+    # 如果当前层的mask已经非常小了, 则停止生长, 防止下一层生长到全图
     if np.nansum(mask_) < 300:
         return None, slice_next
 
@@ -344,13 +344,13 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5,
 
     optimized_threshold, trigger_ratio = get_optimized_threshold(
         slice_, seed, seed_region_intensity, ratio, verbose, min_iter)
-    mask_res = region_grow(slice_, seed, optimized_threshold).astype(np.float)
+    mask_res_ = region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
     if verbose:
-        public.draw_mask_contours(slice_, mask_res, 'tmp/.png', title=f's: {seed}')
+        public.draw_mask_contours(slice_, mask_res_, 'tmp/.png', title=f's: {seed}')
 
     mask_3d = np.full(img.shape, np.nan)
-    seed.set_slice(mask_3d, mask_res)
+    seed.set_slice(mask_3d, mask_res_)
 
     optimized_thresholds = [optimized_threshold]
 
@@ -362,6 +362,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5,
         return float(m), float(s)
 
     max_index = img.shape[0] - 1
+    mask_res = mask_res_
     while seed.height < max_index:
         mean, std = get_mask_mean_std()
         seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std,
@@ -389,6 +390,7 @@ def grow_by_every_slice(seed_first: Pixel, img: np.ndarray, ratio: float = 0.5,
             public.draw_mask_contours(slice_next, mask_res, 'tmp/.png', title=f's: {seed}')
 
     seed = seed_first
+    mask_res = mask_res_
     while seed.height > 0:
         mean, std = get_mask_mean_std()
         seed, slice_next = get_seed_in_neighbor_slice(seed, img, mask_res, mean, std,
