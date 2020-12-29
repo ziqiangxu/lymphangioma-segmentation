@@ -289,7 +289,7 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
         height = seed.height - 1
     seed_neighbor = Pixel(seed.row, seed.col, height)
 
-    # slice_ = seed.get_slice(img)
+    slice_ = seed.get_slice(img)
     slice_next: np.ndarray = seed_neighbor.get_slice(img)
     #
     # roi_region: np.ndarray = mask * slice_.astype(np.float)
@@ -297,11 +297,18 @@ def get_seed_in_neighbor_slice(seed: Pixel, img: np.ndarray, mask: np.ndarray,
     # mean = np.nanmean(roi_region)
     # std = np.nanmean(roi_region)
 
-    seed_region_next: np.ndarray = slice_next * mask
+    # 缩小mask的区域
+    mask_ = mask.astype(np.float)
+    mask_[slice_ < mean] = 0
+    # 如果当前层的mask已经非常小了, 则停止生长,防止下一层生长到全图
+    if np.nansum(mask_) < 300:
+        return None, slice_next
+
+    seed_region_next: np.ndarray = slice_next * mask_
 
     # TODO 这个地方有问题，可能找到ROI之外. 特别是在上一层分割不太准确的时候, 所以需要着重提高区域生长的精度
     upper = mean + 2 * std
-    lower = mean - 2 * std
+    lower = mean - std
 
     seed_region_next[seed_region_next < lower] = 0
     seed_region_next[seed_region_next > upper] = 0
