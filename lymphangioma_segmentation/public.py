@@ -1,6 +1,5 @@
 """
-Author: Daryl.Xu
-E-mail: ziqiang_xu@qq.com
+@Author: Daryl Xu <ziqiang_xu@qq.com>
 """
 import os
 from typing import List

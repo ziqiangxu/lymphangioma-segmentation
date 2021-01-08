@@ -1,12 +1,13 @@
 """
-Author: Daryl.Xu
-E-mail: ziqiang_xu@qq.com
+@Author: Daryl Xu <ziqiang_xu@qq.com>
 """
 import os
 from typing import Tuple, List
+import warnings
 
 import numpy as np
 import matplotlib.pyplot as plt
+from deprecated.sphinx import deprecated
 
 from lymphangioma_segmentation import segmentation
 from lymphangioma_segmentation.image import Pixel
@@ -28,27 +29,8 @@ SEEDS1.append(Pixel(220, 350, 6))
 
 # threshold 800-1200
 PATIENT0 = 'data/p0.npy'
-SEEDS_P0 = list()
-SEEDS_P0.append(Pixel(324, 180, 9))
-SEEDS_P0.append(Pixel(340, 200, 10))
-SEEDS_P0.append(Pixel(340, 200, 11))
-SEEDS_P0.append(Pixel(350, 190, 12))
-SEEDS_P0.append(Pixel(350, 200, 13))
-SEEDS_P0.append(Pixel(342, 180, 14))
-SEEDS_P0.append(Pixel(342, 170, 15))
 
 PATIENT1 = 'data/p1.npy'
-SEEDS_P1 = list()
-SEEDS_P1.append(Pixel(200, 182, 2))
-SEEDS_P1.append(Pixel(212, 165, 3))
-SEEDS_P1.append(Pixel(227, 156, 4))
-SEEDS_P1.append(Pixel(223, 159, 5))
-SEEDS_P1.append(Pixel(237, 165, 6))
-SEEDS_P1.append(Pixel(256, 164, 7))
-SEEDS_P1.append(Pixel(272, 172, 8))
-SEEDS_P1.append(Pixel(277, 181, 9))
-SEEDS_P1.append(Pixel(276, 182, 10))
-SEEDS_P1.append(Pixel(295, 170, 11))
 
 # 这批数据来自于jpg图像
 P_64744562 = 'data/64744562.npy'
@@ -74,10 +56,32 @@ seeds_dict = {
         Pixel(332, 354, 5),
         Pixel(333, 349, 6),
         Pixel(333, 349, 7),
+        Pixel(275, 345, 7),  # region_grow有问题, 生长不完全
         Pixel(333, 349, 8),
     ],
-    PATIENT0: SEEDS_P0,
-    PATIENT1: SEEDS_P1,
+    PATIENT0: [
+        Pixel(324, 180, 9),
+        Pixel(340, 200, 10),
+        Pixel(340, 200, 11),
+        Pixel(350, 190, 12),
+        Pixel(350, 200, 13),
+        Pixel(342, 180, 14),
+        Pixel(342, 170, 15),
+        Pixel(344, 168, 16)  # 这个种子点生长,会有点超出范围
+    ],
+    PATIENT1: [
+        Pixel(200, 182, 2),
+        Pixel(212, 165, 3),
+        Pixel(227, 156, 4),
+        Pixel(223, 159, 5),
+        Pixel(237, 165, 6),
+        Pixel(256, 164, 7),
+        Pixel(234, 202, 7),  # region_grow有问题
+        Pixel(272, 172, 8),
+        Pixel(277, 181, 9),
+        Pixel(276, 182, 10),
+        Pixel(295, 170, 11)
+    ],
     DATA1: SEEDS1
 }
 
@@ -93,11 +97,11 @@ def test_optimized_thresholds():
     ratios = []
 
     def compute(img, seed):
-        neighborhood_arr = seed.get_neighborhood_3d_arr(img, 10)
+        neighborhood_arr = seed.get_neighborhood_3d_arr(img, half_width=10, half_height=0)
         reference_intensity = neighborhood_arr.mean()
         slice_ = seed.get_slice(img)
         optimal_threshold, trigger_ratio = segmentation.get_optimized_threshold(
-            slice_, seed, reference_intensity, 3, False)
+            slice_, seed, reference_intensity, 3, True, min_iter=5)
 
         thresholds.append(optimal_threshold)
         ratios.append(trigger_ratio)
@@ -148,11 +152,22 @@ def test_optimized_thresholds():
 
 
 def test_grow_slice():
-    img, _ = get_test_data(test_data_id)
-    seed = Pixel(199, 121, 17)
+    img, seeds = get_test_data(test_data_id)
+    seed = Pixel(275, 345, 7)
     slice_ = seed.get_slice(img)
+
     intensity = seed.get_pixel(slice_)
-    segmentation.get_optimized_threshold(slice_, seed, intensity, 8, True)
+
+    neighborhood_arr = seed.get_neighborhood_3d_arr(img, half_width=10, half_height=0)
+    reference_intensity = neighborhood_arr.mean()
+
+    threshold, trigger_ration = segmentation.get_optimized_threshold(slice_,
+                                                                     seed, reference_intensity, 13,
+                                                                     verbose=True, min_iter=5)
+    logger.debug(f'threshold: {threshold}, trigger ratio: {trigger_ration}')
+    mask = segmentation.region_grow(slice_, seed, threshold)
+    public.draw_mask_contours(slice_, mask, 'tmp/t.png')
+    plt.show()
 
 
 def test_show_seeds():
@@ -167,7 +182,9 @@ def test_show_seeds():
         plt.show()
 
 
+@deprecated(version='1.0', reason='replaced by test_grow_every_slice1')
 def test_grow_every_slice():
+    warnings.warn('replaced by test_grow_every_slice1', DeprecationWarning)
     img, seeds = get_test_data(test_data_id)
     seed_first = seeds[0]
 
@@ -184,7 +201,7 @@ def test_grow_every_slice():
     seed_region_intensity = seed.get_neighborhood_3d_arr(img, 5).mean()
 
     optimized_threshold, trigger_ratio = segmentation.get_optimized_threshold(
-        slice_, seed, seed_region_intensity, 0.5, True)
+        slice_, seed, seed_region_intensity, ratio=3, verbose=True)
     mask_res = segmentation.region_grow(slice_, seed, optimized_threshold).astype(np.float)
 
     if display:
@@ -215,7 +232,8 @@ def test_grow_every_slice():
 
         seed_region_intensity = seed.get_pixel(slice_next)
         optimized_threshold, _ = segmentation.get_optimized_threshold(slice_next, seed,
-                                                                      seed_region_intensity, 0.5, True)
+                                                                      seed_region_intensity, ratio=3,
+                                                                      verbose=True)
         upper = mean + 3 * std
         lower = mean - 3 * std
         if not lower < optimized_threshold < upper:
@@ -263,10 +281,12 @@ def test_grow_every_slice():
 
 
 def test_grow_every_slice1():
-    img: np.ndarray = np.load(PATIENT1)
-    mask_3d, mean, std = segmentation.grow_by_every_slice(SEEDS_P1[3], img)
+    img, seeds = get_test_data(test_data_id)
+    mask_3d, mean, std = segmentation.grow_by_every_slice(seeds[3], img, ratio=3,
+                                                          min_iter=5, verbose=True)
     logger.debug(f'mean: {mean}, std: {std}')
-    public.save_nii(mask_3d, 'tmp/mask_3d.nii.gz')
+    public.save_nii(mask_3d, 'tmp/mask.nii.gz')
+    public.save_nii(img, 'tmp/img.nii.gz')
 
 
 def test_display_volume():
@@ -304,13 +324,14 @@ def test_grow_slice_grow_3d():
     """
     img, seeds = get_test_data(test_data_id)
     seed_first = seeds[0]
-    _, mean, std = segmentation.grow_by_every_slice(seed_first, img, ratio=3)
-    logger.debug(f'mean: {mean}, std: {std}')
+    # _, mean, std = segmentation.grow_by_every_slice(seed_first, img, ratio=3)
+    # logger.debug(f'mean: {mean}, std: {std}')
 
     # threshold = mean + std
-    threshold = mean - 0.8 * std
+    # threshold = mean - 0.8 * std
     # threshold = mean
     # threshold = mean + std * 0.8
+    threshold = 120
 
     logger.debug(f'the threshold: {threshold}')
     mask_3d = segmentation.region_grow_3d(img, seed_first, threshold)
@@ -331,17 +352,18 @@ def test_mip():
 if __name__ == '__main__':
     logger = get_logger('lymphangioma_segmentation')
     # test_data_id = P_64744562
-    # test_data_id = P_64760252
-    test_data_id = DATA1
+    test_data_id = P_64760252  # 纹理比较清晰, 使用区域生长算法不是很好
+    # test_data_id = DATA1
     # test_data_id = PATIENT0
     # test_data_id = PATIENT1
     # test_optimized_thresholds()
-    # test_grow_slice()
+    test_grow_slice()
     # test_show_seeds()
     # test_statistic_threshold()
     # test_display_volume()
-    # test_grow_every_slice()
     # test_grow_every_slice1()
-    test_grow_slice_grow_3d()
-    os.system('source ~/.bashrc;itksnap -g ~/git/lymphangioma-segmentation/lymphangioma_segmentation/output/262.nii.gz -s ~/git/lymphangioma-segmentation/lymphangioma_segmentation/output/262_mask.nii.gz ')
+    # os.system('source ~/.bashrc;itksnap -g tmp/img.nii.gz -s tmp/mask.nii.gz ')
+
+    # test_grow_slice_grow_3d()
+    # os.system('source ~/.bashrc;itksnap -g ~/git/lymphangioma-segmentation/lymphangioma_segmentation/output/262.nii.gz -s ~/git/lymphangioma-segmentation/lymphangioma_segmentation/output/262_mask.nii.gz ')
     # test_mip()

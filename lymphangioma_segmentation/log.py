@@ -1,6 +1,5 @@
 """
-Author: Daryl.Xu
-E-mail: ziqiang_xu@qq.com
+@Author: Daryl Xu <ziqiang_xu@qq.com>
 
 可见logging相关介绍 https://cuiqingcai.com/6080.html
 """
