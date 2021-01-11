@@ -12,10 +12,7 @@ from matplotlib.path import Path
 import matplotlib.patches as patches
 import numpy as np
 import nibabel as nib
-try:
-    import cv2 as cv
-except ModuleNotFoundError:
-    print('don\'t worry, cv2 is required just in development')
+import cv2 as cv
 from lymphangioma_segmentation.image import Pixel
 
 
@@ -121,75 +118,3 @@ def get_log_path(relative_path: str, create_dir=False):
     if create_dir:
         os.makedirs(absolute_path, exist_ok=True)
     return absolute_path
-
-
-def load_volume_from_jpg(files: List[str]) -> np.ndarray:
-    """
-    Load volume from jpg
-    :param files:
-    :return:
-    """
-    volume = []
-    for file in files:
-        img = cv.imread(file, cv.IMREAD_GRAYSCALE)
-        volume.append(img)
-        plt.imshow(img, cmap='gray')
-        plt.show()
-    volume = np.stack(volume)
-    volume = volume / volume.max() * 1024
-    return volume
-
-
-# Type1
-# MR Neck PS.eT2W_SPAIR SENSE.Se 602.Img 28-32.jpg
-# MR Neck PS.eT2W_SPAIR SENSE.Se 602.Img 29-32.jpg
-# Type2
-
-pattern = re.compile(r'[0-9]+')
-
-
-def sort_files_by_name(names: List[str], reverse: bool = False):
-    """
-    sort the names by
-    :param names:
-    :param reverse:
-    :return:
-    """
-    num_sort_index: int
-    num_count: int
-
-    def get_image_index(name: str):
-        """
-        Get the index of name.
-        filename: 'MR Neck PS.eT2W_SPAIR SENSE.Se 602.Img 10-32.jpg'
-        the index is 10
-        :param name:
-        :return:
-        """
-        nums = pattern.findall(name)
-        if len(nums) != num_count:
-            raise BaseException(f"can't exact index from the string: {name}")
-        return float(nums[num_sort_index])
-
-    if len(names) > 2:
-        num1 = pattern.findall(os.path.basename(names[0]))
-        num2 = pattern.findall(os.path.basename(names[1]))
-        # 解析出来的数字数目应该一样多
-        num_count = len(num1)
-        assert num_count == len(num2)
-        arr1 = np.array(num1)
-        arr2 = np.array(num2)
-        diff: np.ndarray = arr1 == arr2
-
-        # 按道理最多只能有一个数字不一样
-        # 40806068_20200827_MR_6_2_2.jpg
-        # 40806068_20200827_MR_6_3_3.jpg
-        # assert diff.sum() + 1 == num_count
-
-        # numpy数组中: True = 1, False = 0
-        num_sort_index = diff.argmin()
-        # TODO remove this line
-        # print(num1, num2, num_sort_index)
-
-    names.sort(key=get_image_index, reverse=reverse)
-    return names
