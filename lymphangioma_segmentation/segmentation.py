@@ -9,6 +9,7 @@ from typing import Tuple
 import matplotlib.pyplot as plt
 import nibabel as nib
 import numpy as np
+from numpy import ndarray
 
 from lymphangioma_segmentation.image import Pixel
 from lymphangioma_segmentation import public
@@ -178,6 +179,14 @@ def get_optimized_threshold(img: np.ndarray, seed: Pixel, reference_intensity: f
 
 
 def region_grow(img: np.ndarray, seed: Pixel, threshold: float) -> np.ndarray:
+    """
+    2D区域生长
+    Region grow in 2D images
+    :param img:
+    :param seed:
+    :param threshold:
+    :return:
+    """
     assert img.ndim == 2
     mask = np.zeros(img.shape, dtype=np.int8)  # 将相似的点标记为1
     # Pixel.print(neighborhoods)
@@ -195,6 +204,35 @@ def region_grow(img: np.ndarray, seed: Pixel, threshold: float) -> np.ndarray:
                 pixels_stack.append(pixel)
                 pixel.mark(mask)
     return mask
+
+
+def fine_tune_roi(roi: ndarray, image: ndarray, mask: ndarray):
+    """
+    基于已分割的图像进行微调
+    Fine tune base on the segmented images
+    :param roi:
+    :param image:
+    :param mask:
+    :return:
+    """
+    seg = (image * mask).astype(np.float)
+    seg[seg == 0] = np.nan
+    mean = np.nanmean(seg)
+    std = np.nanstd(seg)
+    roi_mask: ndarray = roi > mean - 1.5 * std
+    return roi_mask.astype(np.int8)
+
+def fine_tune_roi1(roi: ndarray, threshold: float):
+    """
+    使用给定阈值对roi区域进行分割
+    Segment roi by a given threshold
+    :param roi:
+    :param threshold:
+    :return:
+    """
+    index = np.unravel_index(roi.argmax(), roi.shape)
+    seed = Pixel(index[0], index[1])
+    return region_grow(roi, seed, threshold)
 
 
 def region_grow_3d(img: np.ndarray, seed: Pixel, threshold: float) -> np.ndarray:
