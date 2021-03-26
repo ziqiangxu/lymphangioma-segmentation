@@ -4,6 +4,7 @@
 import os
 import re
 from typing import List
+from decimal import Decimal
 
 import numpy as np
 import pydicom
@@ -274,7 +275,8 @@ def get_voxel_size(path: str) -> float:
     """
     dcm = pydicom.dcmread(path, force=True)
     x_str, y_str = dcm.PixelSpacing
-    x = float(x_str)
-    y = float(y_str)
-    z = float(dcm.SpacingBetweenSlices)
-    return x * y * z
+    x = Decimal(str(x_str))
+    y = Decimal(str(y_str))
+    z = Decimal(str(dcm.SpacingBetweenSlices))
+    print(float(x * y * z))
+    return float(x * y * z)
